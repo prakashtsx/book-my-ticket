@@ -117,6 +117,22 @@ app.get("/seats", async (req, res) => {
   res.send(result.rows);
 });
 
+// current user booking 
+app.get("/my-bookings", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      "SELECT * FROM seats WHERE name = $1",
+      [userId]
+    );
+
+    res.send(result.rows);
+  } catch (err) {
+    res.status(500).send({ error: "Server error" });
+  }
+});
+
 //book a seat give the seatId and your name
 
 app.put("/:id/:name", authMiddleware, async (req, res) => {
