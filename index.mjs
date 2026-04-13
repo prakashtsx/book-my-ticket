@@ -12,6 +12,7 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -36,7 +37,7 @@ const app = new express();
 app.use(cors());
 app.use(express.json())
 
-
+// Register endpoint
 app.post('/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
@@ -52,6 +53,33 @@ app.post('/register', async (req, res) => {
     await pool.query("INSERT INTO users (email, password, first_name, last_name) VALUES ($1, $2, $3, $4)", [email, hashedPassword, firstName, lastName]);
 
     res.status(201).send({ message: "User registered successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Server Error" });
+  }
+})
+
+// Login endpoint
+app.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+
+    if (result.rowCount === 0) {
+      return res.status(400).send({ error: "Invalid email or password" });
+    }
+
+    const user = result.rows[0];
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(400).send({ error: "Invalid email or password" });
+    }
+
+    const token = jwt.sign({ id: user.id },
+      "CHAICODE",
+      { expiresIn: '1d' });
+    res.send({ token });
   } catch (error) {
     console.error(error);
     res.status(500).send({ error: "Server Error" });
