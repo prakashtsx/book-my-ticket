@@ -11,6 +11,7 @@ import pg from "pg";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
+import bcrypt from 'bcrypt'
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +34,29 @@ const pool = new pg.Pool({
 
 const app = new express();
 app.use(cors());
+app.use(express.json())
+
+
+app.post('/register', async (req, res) => {
+  try {
+    const { email, password, firstName, lastName } = req.body;
+
+    const exiting = await pool.query("SELECT * FROM users where email = $1", [email]);
+
+    if (exiting.rowCount > 0) {
+      return res.status(400).send({ error: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await pool.query("INSERT INTO users (email, password, first_name, last_name) VALUES ($1, $2, $3, $4)", [email, hashedPassword, firstName, lastName]);
+
+    res.status(201).send({ message: "User registered successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Server Error" });
+  }
+})
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
