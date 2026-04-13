@@ -86,6 +86,28 @@ app.post('/login', async (req, res) => {
   }
 })
 
+// Auth middleware
+const authMiddleware = (req, res, next) => {
+  try {
+    const header = req.headers.authorization;
+
+    if (!header) {
+      return res.status(401).send({ error: "No authorization header provided" });
+    }
+
+    const token = header.split(" ")[1];
+
+    const decodedToken = jwt.verify(token, "CHAICODE");
+
+    req.user = decodedToken;
+
+    next();
+  } catch (error) {
+    console.error(error);
+    res.status(401).send({ error: "Invalid token" });
+  }
+};
+
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
@@ -97,10 +119,10 @@ app.get("/seats", async (req, res) => {
 
 //book a seat give the seatId and your name
 
-app.put("/:id/:name", async (req, res) => {
+app.put("/:id/:name", authMiddleware, async (req, res) => {
   try {
     const id = req.params.id;
-    const name = req.params.name;
+    const name = req.user.id;
     // payment integration should be here
     // verify payment
     const conn = await pool.connect(); // pick a connection from the pool
@@ -129,9 +151,9 @@ app.put("/:id/:name", async (req, res) => {
     await conn.query("COMMIT");
     conn.release(); // release the connection back to the pool (so we do not keep the connection open unnecessarily)
     res.send(updateResult);
-  } catch (ex) {
-    console.log(ex);
-    res.send(500);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Server Error" });
   }
 });
 
